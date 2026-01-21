@@ -1,0 +1,97 @@
+<!doctype html>
+{% if session.get('user') is none %}
+    {% set redirect_url = url_for('auth.login') %}
+    <meta http-equiv="refresh" content="0; url={{ redirect_url }}">
+{% endif %}
+
+{% set is_admin = session.get('role_id') == 3 %}
+{% set iladroit = session.get('role_id') == 2 or session.get('role_id') == 3 %}
+
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Logs — Syslog</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+
+<body>
+
+<header>
+    <nav class="nav" aria-label="Navigation principale">
+        <div class="brand">
+            <span class="logo" aria-hidden="true"></span>
+            <span>LogsView</span>
+        </div>
+        <div class="spacer"></div>
+        <div class="links" role="menubar">
+            <a role="menuitem" href="{{ url_for('main.home') }}">Accueil</a>
+            <a role="menuitem" href="{{ url_for('main.logs') }}">Logs</a>
+            {% if iladroit %}
+                <a role="menuitem" href="{{ url_for('main.gestion') }}">Gestion</a>
+            {% endif %}
+            {% if is_admin %}
+                <a role="menuitem" href="{{ url_for('main.admin') }}">Administration</a>
+            {% endif %}
+        </div>
+        <a class="cta" href="{{ url_for('auth.logout') }}">Se déconnecter</a>
+    </nav>
+</header>
+
+<main class="page-center logs-page">
+
+<section class="hero">
+
+    <h1>Journaux systèmes — Syslog</h1>
+<p>Affichage des {{ max_events }} derniers événements des machines sélectionnées.</p>
+
+<div class="host-results">
+    {% if events %}
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Machine</th>
+                    <th>Message</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for event in events %}
+                <tr>
+                    <td class="log-date">
+                        {% if event.timestamp %}
+                            {{ event.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td class="log-host">
+                        {{ event.host }}
+                    </td>
+                    <td class="log-message">
+                        {{ event.message }}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="empty">Aucun événement syslog disponible pour les machines sélectionnées.</p>
+    {% endif %}
+</div>
+
+    <br>
+    <div class="host-back">
+        <a class="cta" href="{{ url_for('main.logs') }}">← Retour à la sélection</a>
+    </div>
+
+</section>
+
+</main>
+
+<footer class="footer">
+    <p>© 2025 — Mon Site</p>
+</footer>
+
+</body>
+</html>

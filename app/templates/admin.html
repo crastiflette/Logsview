@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+{% if session.get('user') is none %}
+    {% set redirect_url = url_for('auth.login') %}
+    <meta http-equiv="refresh" content="0; url={{ redirect_url }}">
+{% endif %}
+{% set is_admin = session.get('role_id')==3 %}
+{% set iladroit = session.get('role_id')==2 or session.get('role_id')==3 %}
+{% set role = session.get('role_id') %}
+
+
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <header>
+        <nav class="nav" aria-label="Navigation principale">
+            <div class="brand" aria-label="Accueil">
+                <span class="logo" aria-hidden="true"></span>
+                <span>LogsView</span>
+            </div>
+            <div class="spacer"></div>
+            <div class="links" role="menubar">
+                <a role="menuitem" href="{{url_for('main.home') }}">Accueil</a>
+                <a role="menuitem" href="{{url_for('main.logs') }}">Logs</a>
+
+                {% if iladroit %}
+                    <a role="menuitem" href="{{url_for('main.gestion') }}">Gestion</a>
+                {% endif %}
+                
+                {% if is_admin %}
+                    <a role="menuitem" href="{{url_for('main.admin') }}">Administration</a>
+                {% endif %}
+                    
+            </div>
+            <a class="cta" href="{{url_for('auth.logout')}}">Se déconnecter</a>
+        </nav>
+    </header>
+    <main class="page-center">
+        <section class="hero">
+            <div class="para">
+                <h1>Page d'administration</h1>
+            </div>
+            <div class="para">
+                <p>Bienvenue dans la section administration. Gérez les utilisateurs ici.</p>
+            </div>
+
+            <h2>Ajouter un nouvel utilisateur</h2>
+
+            <form method="post" class="admin-form" action="{{url_for('main.admin')}}">
+
+                <label for="username">Username :</label><br>
+                <input type="text" id="username" name="username"><br>
+
+                <label for="password">Mot de passe :</label><br>
+                <input type="text" id="password" name="password"><br>
+
+                <label for="role">Rôle:</label><br>
+                <select id="role" name="role_id" required>
+                    <option value="" disabled selected>-- Choisir un rôle --</option>
+                    <option value="1">Utilisateur</option>
+                    <option value="2">Gestionnaire</option>
+                    <option value="3">Administrateur</option>
+                </select><br>
+
+                <div class="admin-submit">
+                    <input type="submit" value="Ajouter l'utilisateur" class="cta">
+                </div>
+
+            </form>
+            {% if error %}
+                <div>
+                    <p style="color: red;">{{ error }}</p>
+                </div>
+            {% endif %}
+        </section>
+        <section class="user-list">
+            <h2>Utilisateurs existants</h2>
+
+            {% if users %}
+                <table style="margin: 0 auto; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 8px 16px;">Pseudo</th>
+                            <th style="padding: 8px 16px;">Rôle</th>
+                            <th style="padding: 8px 16px;">Date de création</th>
+                            <th style="padding: 8px 16px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td style="padding: 8px 16px; text-align: center;">
+                                    {{ user.username }}
+                                </td>
+                                <td style="padding: 8px 16px; text-align: center;">
+                                    {{ user.role_id }}
+                                </td>
+                                <td style="padding: 8px 16px; text-align: center;">
+                                    {{ user.created_at }}
+                                </td>
+                                {% if user.username == session.get('user') %} 
+                                    <td style="padding: 8px 16px; text-align: center;">
+                                        <strong>(Admin)</strong>
+                                    </td>
+                                {% else %}
+                                    <td style="padding: 8px 16px; text-align: center;">
+                                        <form method="post"  action="{{ url_for('main.delete_user', username=user.username) }}">
+                                            <button type="submit" class="cta-delete">
+                                                Supprimer
+                                            </button>
+                                        </form>
+                                    </td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Aucun utilisateur trouvé.</p>
+            {% endif %}
+        </section>
+        
+        
+    </main>
+    <footer class="footer">
+        <p>© 2025 — Mon Site</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+{% if session.get('user') is none %}
+    {% set redirect_url = url_for('auth.login') %}
+    <meta http-equiv="refresh" content="0; url={{ redirect_url }}">
+{% endif %}
+{% set is_admin = session.get('role_id')==3 %}
+{% set iladroit = session.get('role_id')==2 or session.get('role_id')==3 %}
+{% set role = session.get('role_id') %}
+
+
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <header>
+        <nav class="nav" aria-label="Navigation principale">
+            <div class="brand" aria-label="Accueil">
+                <span class="logo" aria-hidden="true"></span>
+                <span>LogsView</span>
+            </div>
+            <div class="spacer"></div>
+            <div class="links" role="menubar">
+                <a role="menuitem" href="{{url_for('main.home') }}">Accueil</a>
+                <a role="menuitem" href="{{url_for('main.logs') }}">Logs</a>
+
+                {% if iladroit %}
+                    <a role="menuitem" href="{{url_for('main.gestion') }}">Gestion</a>
+                {% endif %}
+                
+                {% if is_admin %}
+                    <a role="menuitem" href="{{url_for('main.admin') }}">Administration</a>
+                {% endif %}
+                    
+            </div>
+            <a class="cta" href="{{url_for('auth.logout')}}">Se déconnecter</a>
+        </nav>
+    </header>
+    <main class="page-center">
+        <section class="hero">
+            <div class="para">
+                <h1>Page de Gestion des machines</h1>
+            </div>
+            <div class="para">
+                <p>Bienvenue dans la section gestion. Gérez les machines ici.</p>
+            </div>
+
+            <h2>Ajouter une machine</h2>
+
+            <form method="post" action="{{url_for('main.gestion')}}">
+
+                <label for="ip">IP :</label><br>
+                <input type="text" id="ip" name="ip"><br>
+
+                <label for="Nom">Nom:</label><br>
+                <input type="text" id="nom" name="nom"><br>
+
+                <label for="password">Mot de passe d'accès :</label><br>
+                <input type="text" id="password" name="password"><br>                
+
+                <div class="admin-submit">
+                    <input type="submit" value="Ajouter la machine" class="cta">
+                </div>
+
+            </form>
+            {% if error %}
+                <div>
+                    <p style="color: red;">{{ error }}</p>
+                </div>
+            {% endif %}
+        </section>
+        <section class="crank-list">
+            <h2>Machines existantes</h2>
+
+            {% if machines %}
+                <table style="margin: 0 auto; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 8px 16px;">IP</th>
+                            <th style="padding: 8px 16px;">Nom</th>
+                            <th style="padding: 8px 16px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for machine in machines %}
+                            <tr>
+                                <td style="padding: 8px 16px; text-align: center;">
+                                    {{ machine.ip }}
+                                </td>
+                                <td style="padding: 8px 16px; text-align: center;">
+                                    {{ machine.nom }}
+                                </td>
+                                <td style="padding: 8px 16px; text-align: center;">
+                                    <form method="post"  action="{{ url_for('main.delete_machine', ip=machine.ip) }}">
+                                        <button type="submit" class="cta-delete">
+                                            Supprimer
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Aucune machine trouvée.</p>
+            {% endif %}
+        </section>
+        
+        
+    </main>
+    <footer class="footer">
+        <p>© 2025 — Mon Site</p>
+    </footer>
+</body>
+</html>

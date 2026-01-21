@@ -1,0 +1,86 @@
+<!doctype html>
+{% if session.get('user') is none %}
+    {% set redirect_url = url_for('auth.login') %}
+    <meta http-equiv="refresh" content="0; url={{ redirect_url }}">
+{% endif %}
+{% set is_admin = session.get('role_id')==3 %}
+{% set iladroit = session.get('role_id')==2 or session.get('role_id')==3 %}
+{% set role = session.get('role_id') %}
+<html lang="fr">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Logs</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    </head>
+    <body>
+        <header>
+            <nav class="nav" aria-label="Navigation principale">
+                <div class="brand" aria-label="Accueil">
+                    <span class="logo" aria-hidden="true"></span>
+                    <span>LogsView</span>
+                </div>
+                <div class="spacer"></div>
+                <div class="links" role="menubar">
+                    <a role="menuitem" href="{{url_for('main.home') }}">Accueil</a>
+                    <a role="menuitem" href="{{url_for('main.logs') }}">Logs</a>
+
+                    {% if iladroit %}
+                        <a role="menuitem" href="{{url_for('main.gestion') }}">Gestion</a>
+                    {% endif %}
+                    
+                    {% if is_admin %}
+                        <a role="menuitem" href="{{url_for('main.admin') }}">Administration</a>
+                    {% endif %}
+                    
+                </div>
+                <a class="cta" href="{{url_for('auth.logout')}}">Se déconnecter</a>
+            </nav>
+        </header>
+
+        <main class="page-center">
+
+            <section class="hero">
+                <h1>Gestion des Logs</h1>
+                <p>Choisissez votre machine pour consulter ses logs.</p>
+
+<form method="post" action="/logs/view" class="host-form">
+
+    <div class="host-selector">
+        <p>Sélectionnez une ou plusieurs machines :</p>
+        {% for machine in machines %}
+        <div class="host-option">
+            <input type="checkbox" id="host-{{ loop.index }}" name="hosts" value="{{ machine }}">
+            <label for="host-{{ loop.index }}" class="host-card">{{ machine }}</label>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Champ pour le nombre de lignes -->
+    <div class="host-limit">
+        <label for="limit">Nombre de lignes à afficher :</label>
+        <input type="number" id="limit" name="limit" min="1" max="500" value="50">
+        <small>(1 à 500)</small>
+    </div>
+
+    <div class="host-submit">
+        <button type="submit" class="cta">Voir les logs sélectionnés</button>
+    </div>
+</form>
+
+
+            {% if error %}
+                <div>
+                    <p style="color: red;">{{ error }}</p>
+                </div>
+            {% endif %}
+            </section>
+
+        </main>
+
+        
+        <footer class="footer">
+            <p>© 2025 — Mon Site</p>
+        </footer>
+    </body>
+</html>
