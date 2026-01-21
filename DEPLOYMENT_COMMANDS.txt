@@ -1,0 +1,173 @@
+DEPLOYMENT & OPS CHECKLIST — SAE302 Logs App
+=============================================
+
+This document lists commands and configuration changes to deploy the app and prepare both the server that runs the app and the remote machines from which logs are collected.
+
+1) Server prerequisites (host that runs the Flask app)
+--------------------------------------------------
+- Install system packages (Debian/Ubuntu example):
+
+  sudo apt update && sudo apt install -y git python3 python3-venv python3-pip build-essential libssl-dev libffi-dev openssh-client openssh-server fail2ban ufw mariadb-client
+
+- Create a dedicated app user (recommended) or run as existing user (here we used 'eliott'):
+
+  sudo useradd -m -s /bin/bash eliott  # skip if user exists
+
+2) Clone & Python virtualenv
+----------------------------
+- From the app server (run as the app user or switch to it):
+
+  git clone <your-repo-url> /opt/sae302 || cp yourlocalrepo /opt/sae302
+  cd /opt/sae302
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install --upgrade pip
+  pip install flask fabric paramiko mysql-connector-python flask-bcrypt cryptography
+
+- Optional: create requirements.txt with pinned versions and use pip install -r requirements.txt.
+
+3) Configuration file (app/config.py)
+-------------------------------------
+- Minimum keys used by the app (example):
+
+  CFG = {
+    "log_files": ["/var/log/syslog", "/var/log/auth.log"],
+    "local_log_dir": "./logs",
+    "ssh_user": "sae302",           # SSH user to connect to remote machines
+    "ssh_key_path": "/home/eliott/.ssh/id_ed25519",  # optional explicit key path
+    # (optional) SECRET_FERNET_KEY: use environment variable for Fernet key
+  }
+
+- If you use Fernet (recommended to encrypt passphrases in DB), generate a key and store in env:
+
+  python3 - <<'PY'
+  from cryptography.fernet import Fernet
+  print(Fernet.generate_key().decode())
+  PY
+
+  export SECRET_FERNET_KEY="<your-generated-key>"
+  # add to systemd unit or app startup env
+
+4) Database setup (MariaDB)
+---------------------------
+- Create DB and table if needed:
+
+  CREATE DATABASE sae302;
+  USE sae302;
+  CREATE TABLE IF NOT EXISTS machines (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    ip VARCHAR(255),
+    nom VARCHAR(255) UNIQUE,
+    passwd VARCHAR(1024) NULL,
+    user VARCHAR(255) NULL
+  );
+
+- Add an entry (example, add 'nom' and 'ip' and encrypted passphrase if used):
+
+  INSERT INTO machines (ip, nom, passwd, user) VALUES ('192.168.122.2', 'Debian-1', 'RECOVERED_OR_ENCRYPTED_PASSWD', 'sae302');
+
+5) SSH keys & remote setup
+--------------------------
+- Generate key (if not already done) as the app user (eliott):
+
+  ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+
+- Install public key on the remote machine user (sae302):
+
+  ssh-copy-id -i /home/eliott/.ssh/id_ed25519.pub sae302@<remote-ip>
+
+- Verify manual SSH (works interactive):
+
+  ssh -i /home/eliott/.ssh/id_ed25519 -vvv sae302@<remote-ip>
+
+6) Ensure process has access to the key / agent
+-----------------------------------------------
+Option A — Preferred: use ssh-agent
+
+  eval "$(ssh-agent -s)"
+  ssh-add /home/eliott/.ssh/id_ed25519
+  # Start the app process in the same environment so it can use SSH_AUTH_SOCK
+  source .venv/bin/activate && nohup python app.py &
+
+Option B — explicit key via config (already supported): set "ssh_key_path" in config.py to /home/eliott/.ssh/id_ed25519
+
+7) Permissions to read remote logs
+----------------------------------
+- Recommended: add sae302 user to adm group on the remote host (allows reading /var/log/*):
+
+  sudo usermod -aG adm sae302
+  # then re-login or use newgrp adm in session; test: id sae302
+
+- Alternative (ACL):
+
+  sudo setfacl -m u:sae302:r /var/log/syslog /var/log/auth.log
+
+- Alternative (sudo restricted): allow ssh user to run cat on logs via sudoers.d rule (more advanced & auditable): create /etc/sudoers.d/sae302 with:
+
+  sae302 ALL=(root) NOPASSWD: /bin/cat /var/log/syslog, /bin/cat /var/log/auth.log
+
+8) Handling permission errors & fallback
+---------------------------------------
+- The app tries SFTP download by default. If permission denied, you can implement a fallback to run `sudo cat /var/log/syslog` over SSH (requires sudoers configuration above).
+
+9) Systemd service (example)
+-----------------------------
+- Example unit /etc/systemd/system/sae302.service (run as eliott):
+
+  [Unit]
+  Description=SAE302 Logs App
+  After=network.target
+
+  [Service]
+  User=eliott
+  WorkingDirectory=/opt/sae302
+  Environment=PATH=/opt/sae302/.venv/bin:/usr/bin
+  Environment=SECRET_FERNET_KEY=<your-key-if-used>
+  ExecStart=/opt/sae302/.venv/bin/python /opt/sae302/app.py
+  Restart=on-failure
+
+  [Install]
+  WantedBy=multi-user.target
+
+- Enable & start:
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now sae302.service
+  sudo journalctl -u sae302 -f
+
+10) Logging & monitoring
+-----------------------
+- Watch application logs while testing:
+
+  tail -f /path/to/app/log/output  # or use journalctl if systemd unit used
+
+- Test the /logs endpoint in the app and watch the console for messages inserted by get_files.py (auth attempts & errors).
+
+11) Security & secrets
+----------------------
+- DO NOT store raw passwords in DB. Options:
+  - Use ssh-agent (preferred)
+  - Store encrypted passphrase with Fernet and keep the Fernet key in environment only
+  - Use a secrets manager (HashiCorp Vault, etc.) in production
+
+- Ensure key files are 600 and owned by the correct user:
+
+  chmod 600 /home/eliott/.ssh/id_ed25519
+  chown eliott:eliott /home/eliott/.ssh/id_ed25519
+
+12) Troubleshooting checklist
+-----------------------------
+- SSH banner / connection issues:  ssh -vvv sae302@<ip> and check /var/log/auth.log
+- Permission denied when reading files: ensure /var/log/* read by group adm or setfacl, or add sudo rule
+- Authentication failed: verify ssh keys installed for the target user and that the app is using the correct key or agent
+- If url_for build errors occur in templates, check blueprint and endpoint names; fallback to static paths if needed (/logs/view)
+
+13) Cleanup & housekeeping
+-------------------------
+- Rotate local logs directory (logrotate or cleanup cron)
+- Limit file display size in UI (truncate long logs or provide download link)
+
+--- End of file ---
+
+
+GROUPE ADM POUR LES UTILISATEUR DE VISUALISATION DES LOGS
