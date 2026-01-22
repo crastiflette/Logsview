@@ -58,21 +58,16 @@ def get_files(server):
 
     os.makedirs(local_dir, exist_ok=True)
 
-    # Saisie de la passphrase associée à la clé SSH
     passphrase = get_passphrase(server)
-
-    # SSH user configurable (par défaut 'sae302')
     ssh_user = CFG.get('ssh_user', 'sae302')
 
-    # Prépare les stratégies d'authentification : config key -> agent -> clés présentes -> mot de passe
+    # config key -> clés présentes -> mot de passe
     key_candidates = [os.path.expanduser('~/.ssh/id_rsa'), os.path.expanduser('~/.ssh/id_ed25519')]
     existing_keys = [k for k in key_candidates if os.path.exists(k)]
 
-    have_agent = bool(os.environ.get('SSH_AUTH_SOCK'))
-
     strategies = []
 
-    # 1) clé configurée explicitement dans config.py
+    # 1) clé dans config.py
     cfg_key = CFG.get('ssh_key_path')
     if cfg_key:
         cfg_key = os.path.expanduser(cfg_key)
@@ -81,13 +76,8 @@ def get_files(server):
         else:
             print(f"Warning: configured ssh_key_path '{cfg_key}' not found or not readable; skipping it.")
 
-    # 2) essai via agent si présent
-    if have_agent:
-        strategies.append(('agent', {'allow_agent': True, 'look_for_keys': True}))
-
     # 3) clés détectées automatiquement
     for key in existing_keys:
-        # évite duplication si cfg_key pointe vers la même clé
         if os.path.abspath(key) == os.path.abspath(cfg_key) if cfg_key else False:
             continue
         strategies.append(('key', {'key_filename': key, 'passphrase': passphrase, 'allow_agent': False, 'look_for_keys': False}))
@@ -100,7 +90,6 @@ def get_files(server):
             key_info = kwargs.get('key_filename') if kwargs else None
             print(f"Trying auth method '{name}' for {server} with user '{ssh_user}' (key={key_info}, agent={have_agent})")
 
-            # Always pass the user explicitly
             with Connection(server_ip, user=ssh_user, connect_kwargs=kwargs or {}) as link:
                 for remote_path in log_files:
                     try:
@@ -112,7 +101,7 @@ def get_files(server):
                         try:
                             link.get(remote_path, local=local_path)
 
-                            # ensure the downloaded file is readable by the web app
+                            # mettre le fichier readable pour l'app
                             try:
                                 os.chmod(local_path, 0o644)
                             except Exception as chmod_e:
