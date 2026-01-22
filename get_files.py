@@ -88,7 +88,7 @@ def get_files(server):
     for name, kwargs in strategies:
         try:
             key_info = kwargs.get('key_filename') if kwargs else None
-            print(f"Trying auth method '{name}' for {server} with user '{ssh_user}' (key={key_info}, agent={have_agent})")
+            print(f"Trying auth method '{name}' for {server} with user '{ssh_user}' (key={key_info})")
 
             with Connection(server_ip, user=ssh_user, connect_kwargs=kwargs or {}) as link:
                 for remote_path in log_files:
