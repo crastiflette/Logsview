@@ -97,7 +97,15 @@
                                     {{ user.username }}
                                 </td>
                                 <td style="padding: 8px 16px; text-align: center;">
-                                    {{ user.role_id }}
+                                    {% if user.role_id==1 %}
+                                        Utilisateur
+                                    {% elif user.role_id==2 %}
+                                        Gestionnaire
+                                    {% elif user.role_id==3 %}
+                                        Administrateur
+                                    {% else %}
+                                        Inconnu
+                                    {% endif %}
                                 </td>
                                 <td style="padding: 8px 16px; text-align: center;">
                                     {{ user.created_at }}
