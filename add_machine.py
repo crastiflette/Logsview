@@ -2,7 +2,6 @@ from flask import Flask
 from flask_bcrypt import Bcrypt
 from app.db import get_db
 
-# Flask minimal pour initialiser bcrypt
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
