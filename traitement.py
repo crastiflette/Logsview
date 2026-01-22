@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timedelta
 import os
-# --- Parsing syslog ---
+
 
 ISO_SYSLOG_REGEX = re.compile(
     r'^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2})\s+'
@@ -62,7 +62,7 @@ def process_syslog_files(file_paths, max_events=50):
             })
         os.remove(path)
 
-    # TRI DÉCROISSANT (événements les plus récents en premier)
+    # TRI DÉCROISSANT
     events.sort(
         key=lambda e: e["timestamp"] or datetime.min,
         reverse=True
