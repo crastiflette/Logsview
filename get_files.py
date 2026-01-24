@@ -76,7 +76,7 @@ def get_files(server):
         else:
             print(f"Warning: configured ssh_key_path '{cfg_key}' not found or not readable; skipping it.")
 
-    # 3) clés détectées automatiquement
+    # 2) clés détectées automatiquement
     for key in existing_keys:
         if os.path.abspath(key) == os.path.abspath(cfg_key) if cfg_key else False:
             continue
